@@ -28,7 +28,7 @@ C:\Users\username\Documents\Adobe\Adobe Substance 3D Painter\assets\export-prese
 ## Enable the KCD2-DDS-Exporter under the Python menu
 First time running the plugin it will ask you what folder the Texconv.exe is located in via a UI pop-up. This will create a KCD2-DDS-Exporter-PluginSettings.ini in the plugin folder with the settings saved.
 
-![plugin widget](https://staticdelivery.nexusmods.com/mods/4187/images/4891/4891-1696725603-1907132508.png)
+![plugin widget](https://i.gyazo.com/4a6f268e6204984fb3e3c192a38698e1.jpg)
 Dockable widget with output terminal and basic settings
 
 # Dependencies:
