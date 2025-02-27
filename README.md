@@ -20,7 +20,7 @@ C:\Users\username\Documents\Adobe\Adobe Substance 3D Painter\python\plugins
 (Can also be found using the Python > Plugins Folder button in the top row)
 
 ## Export preset:
-Move the KCD2.spexp from the optional files to this folder: 
+Move the Kingdom Come Deliverance 2 Export.spexp from the optional files to this folder: 
 <pre>
 C:\Users\username\Documents\Adobe\Adobe Substance 3D Painter\assets\export-presets
 </pre>
@@ -37,7 +37,7 @@ Microsoft Texconv (Download and extract to whatever folder you want)
 https://github.com/Microsoft/DirectXTex/wiki/Texconv
 
 # Compatibility
-Developed and tested with Substance Painter 7.3.1 (2021)
+Tested with Substance Painter 10.1.2 (2025)
 
 ## Support
 Please reach out on the KCD2 modding Discord if you have issues.
