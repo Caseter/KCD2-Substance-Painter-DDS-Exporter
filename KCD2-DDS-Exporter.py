@@ -2,8 +2,8 @@ __author__ = "Emil Eldstål - Modified for KCD2 by Casey"
 __copyright__ = "Copyright 2023, Emil Eldstål - Modified for KCD2 by Casey"
 __version__ = "0.1.1"
 
-from PySide2 import QtWidgets
-from PySide2.QtCore import Qt
+from PySide6 import QtWidgets
+from PySide6.QtCore import Qt
 
 import substance_painter.ui
 import substance_painter.event
@@ -44,7 +44,7 @@ def config_ini(overwrite):
             # If the section or key doesn't exist, create it and set the value
             config['General'] = {}
             config['General']['TexConvDirectory'] = TexConvPath
-            print("KCD2 DDS Exporter Plugin: TexConvDirectory value set or updated in KCD2PluginSettings.ini")
+            print("KCD2 DDS Exporter Plugin: TexConvDirectory value set or updated in KCD2-DDS-Exporter-PluginSettings.ini")
 
         # Write the updated configuration back to the INI file
         with open(ini_file_path, 'w') as configfile:
@@ -64,10 +64,10 @@ def choose_texconv_folder():
     substance_painter.ui.get_main_window(),"Choose Texconv directory")
     return path +"/texconv.exe"
 
-def convert_png_to_dds(texconvPath, sourcePNG, overwrite):
+def convert_tif_to_dds(texconvPath, sourceTIF, overwrite):
     # Replace backslashes with forward slashes in the provided paths
     texconvPath = texconvPath.replace('\\', '/')
-    sourceFolder = os.path.dirname(sourcePNG)
+    sourceFolder = os.path.dirname(sourceTIF)
     sourceFolder = sourceFolder.replace('\\', '/')
     outputFolder = sourceFolder + "/DDS/"
 
@@ -78,20 +78,22 @@ def convert_png_to_dds(texconvPath, sourcePNG, overwrite):
         print("Created DDS subfolder")
 
     # for filename in os.listdir(sourceFolder):
-    filename = sourcePNG
-    if filename.endswith(".png"):
+    filename = sourceTIF
+    if filename.endswith(".tif"):
         sourceFile = os.path.splitext(filename)[0]
         suffix = sourceFile.split('_')[-1]
         suffix = suffix.rstrip('_')
 
         outputFile = sourceFile + ".dds"
 
-        if suffix in ["metal", "rough", "transmissive", "emissive", "ao", "opacity", "height", "mask"]:
-            format_option = "BC4_UNORM"
-        elif suffix == "normal":
+        if suffix == "ddna":
             format_option = "BC5_SNORM"
-        elif suffix == "color":
+        elif suffix == "diff":
+            format_option = "BC3_UNORM_SRGB"
+        elif suffix == "diff":
             format_option = "BC7_UNORM"
+        elif suffix in ["spec", "id"]:
+            format_option = "BC1_UNORM_SRGB"
         # If for some reason it's using some other suffix that's not supported
         else:
             format_option = "BC1_UNORM"
@@ -212,7 +214,7 @@ class KCD2DDSPlugin:
             self.log.append("Converting to DDS files:")
             for file_list in res.textures.values():
                 for file_path in file_list:
-                    convert_png_to_dds(self.TexConvPath,file_path,self.overwrite)
+                    convert_tif_to_dds(self.TexConvPath,file_path,self.overwrite)
                     file_path = file_path[:-3]+"DDS"
                     self.log.append("  {}".format(file_path))
 
