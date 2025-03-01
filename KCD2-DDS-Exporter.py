@@ -88,10 +88,8 @@ def convert_tif_to_dds(texconvPath, sourceTIF, overwrite):
 
         if suffix == "ddna":
             format_option = "BC5_SNORM"
-        elif suffix == "diff":
+        elif suffix in ["diff", "bgs"]:
             format_option = "BC3_UNORM_SRGB"
-        elif suffix == "diff":
-            format_option = "BC7_UNORM"
         elif suffix in ["spec", "id"]:
             format_option = "BC1_UNORM_SRGB"
         # If for some reason it's using some other suffix that's not supported
