@@ -2,235 +2,187 @@ __author__ = "Emil Eldstål - Modified for KCD2 by Casey"
 __copyright__ = "Copyright 2023, Emil Eldstål - Modified for KCD2 by Casey"
 __version__ = "0.1.1"
 
+import os
+import sys
+import subprocess
+import importlib
+import importlib.util
+import configparser
 from PySide6 import QtWidgets
 from PySide6.QtCore import Qt
-
 import substance_painter.ui
 import substance_painter.event
 
-import os
-import configparser
-import subprocess
-
-def config_ini(overwrite):
-    # Get the path to the script's directory
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-
-    # Define the path to the KCD2PluginSettings.ini file
-    ini_file_path = os.path.join(script_dir, "KCD2-DDS-Exporter-PluginSettings.ini")            
+def get_substance_painter_python():
+    """Finds the correct Substance Painter Python executable."""
+    correct_python = r"C:\\Program Files\\Adobe\\Adobe Substance 3D Painter\\resources\\pythonsdk\\python.exe"
     
-    # Create a ConfigParser object
-    config = configparser.ConfigParser()
-
-    # Check if the INI file exists
-    if os.path.exists(ini_file_path):
-        # Read the INI file
-        config.read(ini_file_path)
-        
-        # Check if the section and key exist
-        if 'General' in config and 'TexConvDirectory' in config['General']:
-            # Check if the value is empty
-            if not config['General']['TexConvDirectory']:
-                # Let's the user choose where TexConv is if not configured
-                config['General']['TexConvDirectory'] = choose_texconv_folder()
-            if overwrite:
-                # Let's the user choose where TexConv is if using overwrite button
-                config['General']['TexConvDirectory'] = choose_texconv_folder()
-
-            # Assign the TexConvDirectory value to the TexConvPath variable
-            TexConvPath = config['General']['TexConvDirectory']
-        else:
-            TexConvPath = choose_texconv_folder()
-            # If the section or key doesn't exist, create it and set the value
-            config['General'] = {}
-            config['General']['TexConvDirectory'] = TexConvPath
-            print("KCD2 DDS Exporter Plugin: TexConvDirectory value set or updated in KCD2-DDS-Exporter-PluginSettings.ini")
-
-        # Write the updated configuration back to the INI file
-        with open(ini_file_path, 'w') as configfile:
-            config.write(configfile)
+    if os.path.exists(correct_python):
+        print(f"Using Substance Painter Python: {correct_python}")
+        return correct_python
     else:
-        TexConvPath = choose_texconv_folder()
-        # If the INI file doesn't exist, create it and set the value
-        with open(ini_file_path, 'w') as configfile:
-            config['General'] = {}
-            config['General']['TexConvDirectory'] = TexConvPath
+        print("Error: Could not find Substance Painter's Python. Using system Python.")
+        return sys.executable  # Fallback
+
+PYTHON_EXE = get_substance_painter_python()
+
+# Ensure Substance Painter's Python has its site-packages in sys.path
+python_lib_path = os.path.join(os.path.dirname(PYTHON_EXE), "lib", "site-packages")
+if python_lib_path not in sys.path:
+    sys.path.append(python_lib_path)
+    print(f"Added {python_lib_path} to sys.path")
+
+def is_package_installed(package_name):
+    """Check if a package is installed without importing it."""
+    try:
+        import pkg_resources
+        pkg_resources.get_distribution(package_name)
+        return True
+    except (ImportError, pkg_resources.DistributionNotFound):
+        return False
+
+def ensure_dependency_installed(package_name):
+    """Ensures a Python package is installed in the Substance Painter environment."""
+    if is_package_installed(package_name):
+        print(f"{package_name} is already installed.")
+    else:
+        print(f"{package_name} not found. Installing...")
+        result = subprocess.run(
+            [PYTHON_EXE, "-m", "pip", "install", package_name], 
+            check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+        )
+        print("STDOUT:\n", result.stdout.decode())
+        print("STDERR:\n", result.stderr.decode())
+        
+        if result.returncode == 0:
+            print(f"{package_name} installed successfully.")
+        else:
+            print(f"Failed to install {package_name}.")
+
+
+# Ensure required dependencies are installed
+ensure_dependency_installed("imageio")
+ensure_dependency_installed("Pillow")  # Correct capitalization
+
+# Import packages after ensuring installation
+import imageio.v3 as iio
+from PIL import Image
+
+def get_rc_exe_path():
+    """Retrieves or sets the path to CryEngine's rc.exe in a settings INI file."""
+    ini_path = os.path.join(os.path.dirname(__file__), "KCD2-DDS-Exporter-PluginSettings.ini")
+    config = configparser.ConfigParser()
+    
+    if os.path.exists(ini_path):
+        config.read(ini_path)
+        if "General" in config and "rc_exe_path" in config["General"]:
+            return config["General"]["rc_exe_path"]
+    
+    app = QtWidgets.QApplication.instance()
+    if app is None:
+        app = QtWidgets.QApplication(sys.argv)
+    
+    file_dialog = QtWidgets.QFileDialog()
+    file_dialog.setFileMode(QtWidgets.QFileDialog.ExistingFile)
+    file_dialog.setNameFilter("Executable Files (*.exe)")
+    file_dialog.setWindowTitle("Select CryEngine rc.exe Path")
+    
+    if file_dialog.exec_():
+        rc_path = file_dialog.selectedFiles()[0]
+        config["General"] = {"rc_exe_path": rc_path}
+        with open(ini_path, "w") as configfile:
             config.write(configfile)
+        return rc_path
+    
+    print("Error: No rc.exe path provided. Plugin cannot proceed.")
+    return None
 
-    return TexConvPath
+def process_texture_export(rc_path, source_tif):
+    """Processes Substance Painter export to convert different texture types to DDS for CryEngine."""
+    if not rc_path:
+        print("Error: No valid rc.exe path found.")
+        return
+    
+    texture_type = None
+    for key in ["ddna", "diff", "spec", "id", "bgs"]:
+        if key in source_tif:
+            texture_type = key
+            break
 
-def choose_texconv_folder():
-    path = QtWidgets.QFileDialog.getExistingDirectory(
-    substance_painter.ui.get_main_window(),"Choose Texconv directory")
-    return path +"/texconv.exe"
+    if not texture_type:
+        print(f"Warning: Could not determine texture type for {source_tif}. Using default conversion.")
+        texture_type = "default"
+    
+    output_dds = source_tif.replace(".tif", ".dds")
+    
+    convert_tif_to_dds_with_rc(rc_path, source_tif, output_dds, texture_type)
 
-def convert_tif_to_dds(texconvPath, sourceTIF, overwrite):
-    # Replace backslashes with forward slashes in the provided paths
-    texconvPath = texconvPath.replace('\\', '/')
-    sourceFolder = os.path.dirname(sourceTIF)
-    sourceFolder = sourceFolder.replace('\\', '/')
-    outputFolder = sourceFolder + "/DDS/"
+def convert_tif_to_dds_with_rc(rc_path, source_tif, output_dds, texture_type):
+    """Converts a TIF to DDS using CryEngine's Resource Compiler (rc.exe) with correct presets."""
+    try:
+        preset_mapping = {
+            "ddna": "NormalsWithSmoothness",
+            "diff": "Diffuse",
+            "spec": "Specular",
+            "id": "IDMap",
+            "bgs": "Background"
+        }
+        
+        preset = preset_mapping.get(texture_type, "Default")
 
-    isExist = os.path.exists(outputFolder)
-    if not isExist:
-        # Create the DDS directory if it does not exist
-        os.makedirs(outputFolder)
-        print("Created DDS subfolder")
+        rc_cmd = [
+            rc_path.replace("\\", "/"),  # Ensure forward slashes
+            source_tif.replace("\\", "/"),
+            f"-preset={preset}",
+            "-o", output_dds
+        ]
 
-    # for filename in os.listdir(sourceFolder):
-    filename = sourceTIF
-    if filename.endswith(".tif"):
-        sourceFile = os.path.splitext(filename)[0]
-        suffix = sourceFile.split('_')[-1]
-        suffix = suffix.rstrip('_')
-
-        outputFile = sourceFile + ".dds"
-
-        if suffix == "ddna":
-            format_option = "BC5_SNORM"
-        elif suffix in ["diff", "bgs"]:
-            format_option = "BC3_UNORM_SRGB"
-        elif suffix in ["spec", "id"]:
-            format_option = "BC1_UNORM_SRGB"
-        # If for some reason it's using some other suffix that's not supported
-        else:
-            format_option = "BC1_UNORM"
-
-        format_option = format_option.rstrip('"')
-        if overwrite:
-            overwrite_option = "-y"
-        else:
-            overwrite_option = ""
-
-        if outputFile:
-            texconv_cmd = [
-                texconvPath,
-                "-nologo", overwrite_option,
-                "-o", outputFolder,
-                "-f", format_option,
-                os.path.join(sourceFolder, filename)
-            ]
-            texconv_cmd_str = subprocess.list2cmdline(texconv_cmd)
-
-            try:
-                subprocess.run(texconv_cmd_str, shell=True, check=True)
-                print(f"Successfully converted {filename} to {outputFile}")
-            except subprocess.CalledProcessError:
-                print(f"Failed to convert {filename}")
+        subprocess.run(rc_cmd, shell=True, check=True)
+        print(f"DDS successfully created with CryEngine RC: {output_dds} using preset: {preset}")
+    except subprocess.CalledProcessError as e:
+        print(f"Error converting TIF to DDS using CryEngine RC: {e}")
 
 class KCD2DDSPlugin:
     def __init__(self):
-        # Export boolean whether to add DDS creation or not
         self.export = True
-        # Overwrites existing DDS files if checked
         self.overwrite = True
-        # Plugin Version
         self.version = "0.1.1"
-
-        # Create a dock widget to report plugin activity.
         self.log = QtWidgets.QTextEdit()
         self.window = QtWidgets.QWidget()
-        self.TexConvPath = config_ini(False)
-
+        self.rc_exe_path = get_rc_exe_path()
+        
         layout = QtWidgets.QVBoxLayout()
-        sub_layout = QtWidgets.QHBoxLayout()
-
-        checkbox = QtWidgets.QCheckBox("Export DDS files")
-        checkbox.setChecked(True)
-        checkbox_overwrite = QtWidgets.QCheckBox("Overwrite DDS files")
-        checkbox_overwrite.setChecked(True)
-        button_texconv = QtWidgets.QPushButton("Choose Texconv location")
-        button_clear = QtWidgets.QPushButton("Clear Log")
-
-        version_label = QtWidgets.QLabel("Version: {}".format(self.version))
-
-        # Adds buttons to sub-layout
-        sub_layout.addWidget(checkbox)
-        sub_layout.addWidget(checkbox_overwrite)
-        sub_layout.addWidget(button_texconv)
-        sub_layout.addWidget(button_clear)
-
-        # Adds all widgets to main layout
-        layout.addLayout(sub_layout)
-        layout.addWidget(self.log)
-        layout.addWidget(version_label)
-
+        self.log.setReadOnly(True)
         self.window.setLayout(layout)
         self.window.setWindowTitle("KCD2 DDS Auto Converter")
-
-        self.log.setReadOnly(True)
-
-        # Connects buttons to click events
-        checkbox.stateChanged.connect(self.checkbox_export_change)
-        checkbox_overwrite.stateChanged.connect(self.checkbox_overwrite_change)
-        button_texconv.clicked.connect(self.button_texconv_clicked)
-        button_clear.clicked.connect(self.button_clear_clicked)
-
-        # Adds Qt as dockable widget to Substance Painter
+        
         substance_painter.ui.add_dock_widget(self.window)
-
-        self.log.append("TexConv Path: {}".format(self.TexConvPath))
-
+        self.log.append("RC Path: {}".format(self.rc_exe_path))
+        
         connections = {
             substance_painter.event.ExportTexturesEnded: self.on_export_finished
         }
         for event, callback in connections.items():
             substance_painter.event.DISPATCHER.connect(event, callback)
-
-    def button_texconv_clicked(self):
-        self.TexConvPath = config_ini(True)
-        self.log.append("New TexConv Path: {}".format(self.TexConvPath))
-
-    def button_clear_clicked(self):
-        self.log.clear()
-
-    def checkbox_export_change(self,state):
-        if state == Qt.Checked:
-            self.export = True
-        else:
-            self.export = False
-
-    def checkbox_overwrite_change(self,state):
-        if state == Qt.Checked:
-            self.overwrite = True
-        else:
-            self.overwrite = False
-
-    def __del__(self):
-        # Remove all added UI elements.
-        substance_painter.ui.delete_ui_element(self.log)
-        substance_painter.ui.delete_ui_element(self.window)
-
+    
     def on_export_finished(self, res):
-        if(self.export):
+        if self.export:
             self.log.append(res.message)
-            self.log.append("Exported files:")
             for file_list in res.textures.values():
                 for file_path in file_list:
-                    self.log.append("  {}".format(file_path))
-                    
-            self.log.append("Converting to DDS files:")
-            for file_list in res.textures.values():
-                for file_path in file_list:
-                    convert_tif_to_dds(self.TexConvPath,file_path,self.overwrite)
-                    file_path = file_path[:-3]+"DDS"
-                    self.log.append("  {}".format(file_path))
-
-    def on_export_error(self, err):
-        self.log.append("Export failed.")
-        self.log.append(repr(err))
+                    output_dds = file_path.replace(".tif", ".dds")
+                    process_texture_export(self.rc_exe_path, file_path)
+                    self.log.append("  DDS File Generated: {}".format(output_dds))
 
 KCD2_DDS_PLUGIN = None
 
 def start_plugin():
-    """This method is called when the plugin is started."""
-    print ("KCD2 DDS Exporter Plugin Initialized")
+    print("KCD2 DDS Exporter Plugin Initialized")
     global KCD2_DDS_PLUGIN
     KCD2_DDS_PLUGIN = KCD2DDSPlugin()
 
 def close_plugin():
-    """This method is called when the plugin is stopped."""
-    print ("Starfield DDS Exporter Plugin Shutdown")
+    print("KCD2 DDS Exporter Plugin Shutdown")
     global KCD2_DDS_PLUGIN
     del KCD2_DDS_PLUGIN
 

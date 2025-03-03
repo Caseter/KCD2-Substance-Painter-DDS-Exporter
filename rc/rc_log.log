@@ -1,0 +1,57 @@
+    0:00 Loading "D:\KCD2Modding\rc\rc.ini"
+    0:00   Loaded "D:\KCD2Modding\rc\rc.ini"
+    0:00 
+    0:00 Platform (/p) not specified, defaulting to 'pc'.
+    0:00 
+    0:00 Initializing pak management
+    0:00 
+    0:00 Loading compiler plug-ins (ResourceCompiler*.dll)
+    0:00 Searching for D:\KCD2Modding\rc\ResourceCompiler*.dll
+    0:00 Loading "D:\KCD2Modding\rc\ResourceCompilerABC.dll"
+    0:00   Loaded "ResourceCompilerABC.dll"
+    0:00     Registered AlembicCompiler ("abc")
+    0:00 Loading "D:\KCD2Modding\rc\ResourceCompilerFBX.dll"
+    0:00   Loaded "ResourceCompilerFBX.dll"
+    0:00     Registered FbxConverter ("fbx")
+    0:00 Loading "D:\KCD2Modding\rc\ResourceCompilerImage.dll"
+    0:00   Loaded "ResourceCompilerImage.dll"
+    0:00     Registered ImageConvertor ("tif", "hdr")
+    0:00     Registered TextureSplitter ("dds")
+    0:00 Loading "D:\KCD2Modding\rc\ResourceCompilerPC.dll"
+    0:00   Loaded "ResourceCompilerPC.dll"
+    0:00     Registered StatCGFCompiler ("cga", "cgf", "i_cgf")
+    0:00     Registered ChunkCompiler ("chunk")
+    0:00     Registered LuaCompiler ("lua")
+    0:00     Registered CharacterCompiler ("chr", "cdf", "skin")
+    0:00     Registered AnimationConvertor ("caf", "i_caf", "cba")
+    0:00     Registered ColladaCompiler ("dae", "dae.zip")
+    0:00 Loading "D:\KCD2Modding\rc\ResourceCompilerXML.dll"
+    0:00   Loaded "ResourceCompilerXML.dll"
+    0:00     Registered XMLConverter ("xml")
+    0:00 
+    0:00 Loading zip & pak compiler module
+    0:00     Registered zip & pak compiler ("pak", "zip")
+    0:00 
+W:  0:00 Unknown command-line options (use "RC /help"):
+W:  0:00     /o
+    0:00 Source Roots (0):
+    0:00 Memory: working set 8.1Mb (peak 8.1Mb), pagefile 4.9Mb (peak 4.9Mb)
+    0:00 Spawning 1 thread
+    0:00 
+   1>  0:00 Start processing file 'cuirass03_m01_torso_bgs.tif', number files to process 1
+   1>  0:00 ---------------------------------
+   1>  0:00 File='cuirass03_m01_torso_bgs.tif'
+   1>  0:00 TIFF file format: 8-bit, 3 channels
+   1>  0:00 Auto-selecting preset 'Albedo' for file 'D:\KCD2Modding\GondorPlate\AutoDDS Test\cuirass03_m01_torso_bgs.tif' (2048 x 2048)
+   1>  0:00 Setting preset: Albedo
+   1>  0:00 RunWithProperties(true, <null>)
+   1>  0:00 Reduce HD: 0   SD: 0
+   1>  0:01 sRGB vs. Linear for 'cuirass03_m01_torso_bgs.tif': 0.000483 vs 0.001012 => 1 => sRGB
+   1>  0:01    Processed DDS (2796200 bytes): cuirass03_m01_torso_bgs.dds
+   
+   1 file processed in 1.4 sec.
+   
+   
+   Finished at: Mon Mar  3 23:28:52 2025
+   
+   0 errors, 2 warnings.

@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<RCJobs>
+
+	<!-- General properties-->
+	<DefaultProperties GameFolder="Data" /> <!-- The subfolder that contains game assets -->
+	<DefaultProperties CacheFolder="cache" /> <!-- The subfolder where the cache will be generated -->
+	<DefaultProperties P="PC" /> <!-- Special case: p must be set from the commandline, and it cannot be set to something else using RCJob, this default reflects the hardcoded default -->
+	<Properties Platform="${P}" /> <!-- This is an alias of p that is used in this job file only -->
+
+	<!-- Default path properties -->
+	<DefaultProperties InputPath="." /> <!-- By default, assume current directory contains source assets -->
+	<DefaultProperties DataPath="${InputPath}/${GameFolder}" /> <!-- Full path to Data folder -->
+	<DefaultProperties TempPath="${InputPath}/TempRC/${Platform}" /> <!-- This script will store converted (but unpacked) files in a temp folder -->
+	<DefaultProperties LevelPath="${DataPath}/Levels/rataje" /> <!-- The LevelCache will be generated for this level -->
+	<DefaultProperties FilesToExtract="*.cgf;*.skin;*.cga;*.xml;*.mtl;*.cdf;*.caf;*.chrparams;*.animevents;*.bspace;*.dds;*.dds.a" /> <!-- Extension list used in ExtractPackData -->
+
+	<Properties CachePath="${LevelPath}/${CacheFolder}" />
+	<Properties TempAssetsPath="${TempPath}/${GameFolder}_Assets" />
+	<Properties ResourceList="${LevelPath}/auto_resourcelist.txt" />
+	<Properties NoStripList="${LevelPath}/nostrip_resourcelist.txt" />
+
+	<!-- Extract mmrm_used_meshes.lst from level.pak -->
+	<ExtractMmrm>
+		<Job Input="terrain\merged_meshes_sectors\mmrm_used_meshes.lst" UnZip="${LevelPath}/level.pak" TargetRoot="${LevelPath}" />
+	</ExtractMmrm>
+
+	<!-- If the builder has only packs, we need to extract the required data -->
+	<ExtractPackData>
+		<Properties TargetRoot="${TempAssetsPath}" />
+		<Properties ListFile="${ResourceList}" />
+
+		<Job Input="${FilesToExtract}" UnZip="${DataPath}/Animations.pak" />
+		<Job Input="${FilesToExtract}" UnZip="${DataPath}/Buildings.pak" />
+		<Job Input="${FilesToExtract}" UnZip="${DataPath}/Buildings-part0.pak" />
+		<Job Input="${FilesToExtract}" UnZip="${DataPath}/Buildings-part1.pak" />
+		<Job Input="${FilesToExtract}" UnZip="${DataPath}/Buildings-part2.pak" />
+		<Job Input="${FilesToExtract}" UnZip="${DataPath}/Characters.pak" />
+		<Job Input="${FilesToExtract}" UnZip="${DataPath}/Characters-part0.pak" />
+		<Job Input="${FilesToExtract}" UnZip="${DataPath}/Characters-part1.pak" />
+		<Job Input="${FilesToExtract}" UnZip="${DataPath}/Characters-part2.pak" />
+		<Job Input="${FilesToExtract}" UnZip="${DataPath}/Cloth.pak" />
+		<Job Input="${FilesToExtract}" UnZip="${DataPath}/Cloth-part0.pak" />
+		<Job Input="${FilesToExtract}" UnZip="${DataPath}/Cloth-part1.pak" />
+		<Job Input="${FilesToExtract}" UnZip="${DataPath}/Cloth-part2.pak" />
+		<Job Input="${FilesToExtract}" UnZip="${DataPath}/GameData.pak" />
+		<Job Input="${FilesToExtract}" UnZip="${DataPath}/Objects.pak" />
+		<Job Input="${FilesToExtract}" UnZip="${DataPath}/Objects-part0.pak" />
+		<Job Input="${FilesToExtract}" UnZip="${DataPath}/Objects-part1.pak" />
+		<Job Input="${FilesToExtract}" UnZip="${DataPath}/Objects-part2.pak" />
+		<Job Input="${FilesToExtract}" UnZip="${DataPath}/Scripts.pak" />
+		<Job Input="${FilesToExtract}" UnZip="${DataPath}/Tables.pak" />
+		<Job Input="${FilesToExtract}" UnZip="${DataPath}/Textures.pak" />
+	</ExtractPackData>
+
+	<!-- Pack all *.cgf files used in Level loading to cgf.pak -->
+	<BuildCgfCache>
+		<Properties StrippedCgfPath="${TempPath}/LevelCache_Assets" />
+
+		<!-- Create stripped cgf files used in Level loading -->
+		<Job SourceRoot="${TempAssetsPath}" Input="*.cgf" ListFile="${ResourceList}" Exclude_ListFile="${NoStripList}" TargetRoot="${StrippedCgfPath}" StripMesh="1" SkipMissing="1" />
+
+		<!-- Pack stripped cgf files to cgf.pak -->
+		<Job SourceRoot="${StrippedCgfPath}" Input="*.cgf" ListFile="${ResourceList}" Exclude_ListFile="${NoStripList}" Zip="${CachePath}/cgf.pak" SkipMissing="1" />
+
+		<!-- Pack non-stripped cgf files used in Merged meshes. These will overwrite accidentally stripped files in cgf.pak -->
+		<Job SourceRoot="${TempAssetsPath}" Input="*.cgf" ListFile="${NoStripList}" Zip="${CachePath}/cgf.pak" SkipMissing="1" />
+	</BuildCgfCache>
+
+	<!-- Pack all *.cga files used in Level loading to cga.pak -->
+	<BuildCgaCache>
+		<Job SourceRoot="${TempAssetsPath}" Input="*.cga" ListFile="${ResourceList}" Zip="${CachePath}/cga.pak" SkipMissing="1" />
+	</BuildCgaCache>
+
+	<!-- Pack all files in xml format used in Level loading to xml.pak -->
+	<BuildXmlCache>
+		<Job SourceRoot="${TempAssetsPath}" Input="*.xml;*.mtl;*.cdf;*.chrparams;*.animevents;*.bspace;" ListFile="${ResourceList}" Zip="${CachePath}/xml.pak" SkipMissing="1" />
+	</BuildXmlCache>
+
+	<!-- Pack all *.dds and *.dds.a files used in Level loading to dds0.pak -->
+	<BuildDdsCache>
+		<Job SourceRoot="${TempAssetsPath}" Input="*.dds" ListFile="${ResourceList}" ListFormat="{1}.dds;{1}.dds.a" Zip="${CachePath}/dds0.pak" SkipMissing="1" />
+	</BuildDdsCache>
+	
+	<!-- Save auto_resourcelist.txt to level.pak. Having the resourcelist slightly speeds up level load. -->
+	<PackResourceList>
+		<Job Input="${ResourceList}" Zip="${LevelPath}/level.pak" SkipMissing="1" />
+	</PackResourceList>
+
+	<!-- Jobs run by default  -->
+	<!-- Note: You can run just one by passing /jobtarget parameter -->
+
+	<!--<Run Job="ExtractMmrm" />-->
+	<!-- Run process_auto_resourcelist.py -->
+	<Run Job="ExtractPackData" />
+	<Run Job="BuildCgfCache" />
+	<Run Job="BuildCgaCache" />
+	<!--<Run Job="BuildXmlCache" />--><!-- Don't build Xml cache for now, because it overrides ScriptBuild -->
+	<Run Job="BuildDdsCache" />
+	<Run Job="PackResourceList" />
+
+</RCJobs>

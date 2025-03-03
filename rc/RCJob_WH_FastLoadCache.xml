@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<RCJobs>
+
+	<!-- General properties-->
+	<DefaultProperties GameFolder="Data" /> <!-- The subfolder that contains game assets -->
+	<DefaultProperties CacheFolder="_fastload" /> <!-- The subfolder where the cache will be generated -->
+	<DefaultProperties P="PC" /> <!-- Special case: p must be set from the commandline, and it cannot be set to something else using RCJob, this default reflects the hardcoded default -->
+	<Properties Platform="${P}" /> <!-- This is an alias of p that is used in this job file only -->
+
+	<!-- Default path properties -->
+	<DefaultProperties InputPath="." /> <!-- By default, assume current directory contains source assets -->
+	<DefaultProperties DataPath="${InputPath}/${GameFolder}" /> <!-- Full path to Data folder -->
+	<DefaultProperties TempPath="${InputPath}/TempRC/${Platform}" /> <!-- This script will store converted (but unpacked) files in a temp folder -->
+	<DefaultProperties LevelPath="${DataPath}/Levels/rataje" /> <!-- The LevelCache will be generated for this level -->
+
+	<Properties CacheFile="${DataPath}/${CacheFolder}/startup.pak" />
+	<Properties HDCacheFile="${DataPath}/${CacheFolder}/startup_HD.pak" />
+	<Properties TempAssetsPath="${TempPath}/${GameFolder}_Assets" />
+	<Properties TempHDAssetsPath="${TempPath}/${GameFolder}_HD" />
+	<Properties NoStripList="${LevelPath}/nostrip_resourcelist.txt" />
+	<Properties InputFilter="" />
+	<Properties ExcludeFilter="" />
+
+	<BuildFastLoadCache>
+		<Properties StrippedCgfPath="${TempPath}/FastLoad_Assets" />
+
+		<!-- Create stripped cgf files -->
+		<Job SourceRoot="${TempAssetsPath}" Input="${InputFilter}*.cgf" Exclude="${ExcludeFilter}" Exclude_ListFile="${NoStripList}" TargetRoot="${StrippedCgfPath}" StripMesh="1" SkipMissing="1" />
+
+		<!-- Pack stripped cgf files -->
+		<Job SourceRoot="${StrippedCgfPath}" Input="${InputFilter}*.cgf" Exclude="${ExcludeFilter}" Zip="${CacheFile}"/>
+
+		<!-- Pack non-stripped cgf files used in Merged meshes -->
+		<Job SourceRoot="${TempAssetsPath}" Input="${InputFilter}*.cgf" Exclude="${ExcludeFilter}" ListFile="${NoStripList}" Zip="${CacheFile}" SkipMissing="1" />
+		
+		<!-- Pack textures -->
+		<Job SourceRoot="${TempAssetsPath}" Input="${InputFilter}*.dds;${InputFilter}*.dds.a" Exclude="${ExcludeFilter};*Libs/UI/Textures/*;*Textures/cubemaps/*" SourceMaxSize="1000000" Zip="${CacheFile}" />
+		<Job SourceRoot="${TempHDAssetsPath}" Input="${InputFilter}*.dds;${InputFilter}*.dds.a" Exclude="${ExcludeFilter};*Libs/UI/Textures/*;*Textures/cubemaps/*" SourceMaxSize="1000000" Zip="${HDCacheFile}" />
+		
+		<!-- Pack other small xml files -->
+		<Job SourceRoot="${TempAssetsPath}" Input="${InputFilter}*.mtl;${InputFilter}*.animevents;${InputFilter}*.bspace;${InputFilter}*.chrparams;${InputFilter}*.cdf;${InputFilter}*.cga;${InputFilter}*.comb" Exclude="${ExcludeFilter}" Zip="${CacheFile}" />
+	</BuildFastLoadCache>
+
+	<Animations>
+		<Properties InputFilter="Animations/" />
+		<Run Job="BuildFastLoadCache"/>
+	</Animations>
+
+	<Buildings>
+		<Properties InputFilter="Objects/buildings/" />
+		<Run Job="BuildFastLoadCache" />
+	</Buildings>
+
+	<Characters>
+		<Properties InputFilter="Objects/characters/" />
+		<Run Job="BuildFastLoadCache" />
+	</Characters>
+	
+	<Heads>
+		<!-- zpracovava se v characters -->
+	</Heads>
+
+	<Cloth>
+		<Properties InputFilter="Objects/characters/humans/cloth/" />
+		<Run Job="BuildFastLoadCache" />
+	</Cloth>
+
+	<GameData>
+		<Properties ExcludeFilter="Libs/Tables/*.*;Libs/AI/*.*;Libs/Haste/*.*" />
+		<Properties InputFilter="Libs/" />
+		<Run Job="BuildFastLoadCache"/>
+		<Properties InputFilter="Materials/" />
+		<Run Job="BuildFastLoadCache"/>
+		<Properties InputFilter="Prefabs/" />
+		<Run Job="BuildFastLoadCache"/>
+	</GameData>
+
+	<Objects>
+		<Properties ExcludeFilter="Objects/characters/*.*;Objects/buildings/*.*" />
+		<Properties InputFilter="Objects/" />
+		<Run Job="BuildFastLoadCache"/>
+	</Objects>
+
+	<Textures>
+		<Properties InputFilter="Textures/" />
+		<Run Job="BuildFastLoadCache"/>
+	</Textures>
+	
+	<Sounds>
+	</Sounds>
+	
+	<Music>
+	</Music>
+
+	<!-- Run all jobs by default. Use /jobtarget to run specific jobs. -->
+	<Run Job="Animations" />
+	<Run Job="Buildings" />
+	<Run Job="Characters" />
+	<Run Job="Cloth" />
+	<Run Job="GameData" />
+	<Run Job="Objects" />
+	<Run Job="Textures" />
+
+</RCJobs>

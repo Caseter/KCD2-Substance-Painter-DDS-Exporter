@@ -3,13 +3,13 @@ KCD2 Substance Painter DDS Exporter
 </h1>
 
 # KCD2 Mod Page
-TBC
+https://www.nexusmods.com/kingdomcomedeliverance2/mods/1029
 
-A Substance Painter DDS export plugin to automate the PNG to DDS conversion.
+A Substance Painter DDS export plugin to automate conversion to DDS.
 
-Original code made by Emil for Starfield - https://github.com/emomilol1213/Substance-Painter-DDS-Exporter Modified by Casey for use in KCD2.
+Original idea made by Emil for Starfield - https://github.com/emomilol1213/Substance-Painter-DDS-Exporter. Repurposed and bastardised by Caseter
 
-No more spending 20 minutes manually converting those 20 different maps to DDS via tedious steps in PS/Intel/Paint.net etc
+No more spending 20 minutes manually converting those 20 different maps to DDS.
 
 # Installation:
 Extract the KCD2-dds-exporter.py into your Substance Painter Plugin folder:
@@ -18,6 +18,8 @@ C:\Users\username\Documents\Adobe\Adobe Substance 3D Painter\python\plugins
 </pre>
 
 (Can also be found using the Python > Plugins Folder button in the top row)
+
+Drag and drop the rc folder into any folder of your choice, just remember where it is.
 
 ## Export preset:
 Move the Kingdom Come Deliverance 2 Export.spexp from the optional files to this folder: 
@@ -51,15 +53,12 @@ Add another fill layer BELOW the previous opacity layer and set the slider to 0 
 You now have transparency working and this will export into your diffuse using the export template.
 
 ## Enable the KCD2-DDS-Exporter under the Python menu
-First time running the plugin it will ask you what folder the Texconv.exe is located in via a UI pop-up. This will create a KCD2-DDS-Exporter-PluginSettings.ini in the plugin folder with the settings saved.
+First time running the plugin it will ask you what folder the rc.exe is located in via a UI pop-up. This will create a KCD2-DDS-Exporter-PluginSettings.ini in the plugin folder with the settings saved.
 
 ![plugin widget](https://i.gyazo.com/4a6f268e6204984fb3e3c192a38698e1.jpg)
-Dockable widget with output terminal and basic settings
 
 # Dependencies:
-Microsoft Texconv (Download and extract to whatever folder you want)
-
-https://github.com/Microsoft/DirectXTex/wiki/Texconv
+Currently all installed automatically. Relies on Pillow & imageio via Python.
 
 # Compatibility
 Tested with Substance Painter 10.1.2 (2025)

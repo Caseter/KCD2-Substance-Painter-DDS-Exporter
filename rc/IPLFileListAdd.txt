@@ -1,0 +1,7 @@
+videos/intro.usm
+videos/intro_pc.usm
+videos/q_skalitz/cin_7805_stribrna_skalice.usm
+videos/q_skalitz/cin_15059_game_over.usm
+animations/humans/male/cinematics/cin_01_*
+animations/humans/female/cinematics/cin_01_*
+animations/humans/male/cinematics/generic/skalitz_intro/*
