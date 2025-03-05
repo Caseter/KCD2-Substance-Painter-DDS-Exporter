@@ -68,34 +68,48 @@ ensure_dependency_installed("Pillow")  # Correct capitalization
 import imageio.v3 as iio
 from PIL import Image
 
-def get_rc_exe_path():
+def get_rc_exe_path(overwrite=False):
     """Retrieves or sets the path to CryEngine's rc.exe in a settings INI file."""
-    ini_path = os.path.join(os.path.dirname(__file__), "KCD2-DDS-Exporter-PluginSettings.ini")
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    ini_file_path = os.path.join(script_dir, "KCD2-DDS-Exporter-PluginSettings.ini")
+    
     config = configparser.ConfigParser()
+
+    if os.path.exists(ini_file_path):
+        config.read(ini_file_path)
+        
+        if 'General' in config and 'rc_exe_path' in config['General']:
+            if not config['General']['rc_exe_path'] or overwrite:
+                new_path = choose_rc_folder()
+                if new_path:  # Ensure a valid path was selected
+                    config['General']['rc_exe_path'] = new_path
+            rc_exe_path = config['General']['rc_exe_path']
+        else:
+            new_path = choose_rc_folder()
+            if new_path:  # Ensure a valid path was selected
+                config['General'] = {}
+                config['General']['rc_exe_path'] = new_path
+            rc_exe_path = config['General'].get('rc_exe_path', None)
     
-    if os.path.exists(ini_path):
-        config.read(ini_path)
-        if "General" in config and "rc_exe_path" in config["General"]:
-            return config["General"]["rc_exe_path"]
-    
-    app = QtWidgets.QApplication.instance()
-    if app is None:
-        app = QtWidgets.QApplication(sys.argv)
-    
-    file_dialog = QtWidgets.QFileDialog()
-    file_dialog.setFileMode(QtWidgets.QFileDialog.ExistingFile)
-    file_dialog.setNameFilter("Executable Files (*.exe)")
-    file_dialog.setWindowTitle("Select CryEngine rc.exe Path")
-    
-    if file_dialog.exec_():
-        rc_path = file_dialog.selectedFiles()[0]
-        config["General"] = {"rc_exe_path": rc_path}
-        with open(ini_path, "w") as configfile:
+        with open(ini_file_path, 'w') as configfile:
             config.write(configfile)
-        return rc_path
+    else:
+        new_path = choose_rc_folder()
+        if new_path:  # Ensure a valid path was selected
+            with open(ini_file_path, 'w') as configfile:
+                config['General'] = {}
+                config['General']['rc_exe_path'] = new_path
+                config.write(configfile)
+        rc_exe_path = new_path if new_path else None
     
-    print("Error: No rc.exe path provided. Plugin cannot proceed.")
-    return None
+    return rc_exe_path
+
+def choose_rc_folder():
+    path = QtWidgets.QFileDialog.getExistingDirectory(
+        substance_painter.ui.get_main_window(), "Choose RC directory")
+    if not path:  # Ensure canceling doesn't return 'rc.exe'
+        return None
+    return path.replace('\\', '/') + '/rc.exe'
 
 def process_texture_export(rc_path, source_tif):
     """Processes Substance Painter export to convert different texture types to DDS for CryEngine."""
@@ -104,7 +118,7 @@ def process_texture_export(rc_path, source_tif):
         return
     
     texture_type = None
-    for key in ["ddna", "diff", "spec", "id", "bgs"]:
+    for key in ["ddna", "diff", "spec", "id", "bgs","mask"]:
         if key in source_tif:
             texture_type = key
             break
@@ -119,13 +133,21 @@ def process_texture_export(rc_path, source_tif):
 
 def convert_tif_to_dds_with_rc(rc_path, source_tif, output_dds, texture_type):
     """Converts a TIF to DDS using CryEngine's Resource Compiler (rc.exe) with correct presets."""
+
+    config = configparser.ConfigParser()
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    ini_file_path = os.path.join(script_dir, "KCD2-DDS-Exporter-PluginSettings.ini")
+    config.read(ini_file_path)
+    selected_diff = config.get("General", "diff_type", fallback="Alpha")
+
     try:
         preset_mapping = {
             "ddna": "NormalsWithSmoothness",
-            "diff": "Diffuse",
-            "spec": "Specular",
-            "id": "IDMap",
-            "bgs": "Background"
+            "diff": "AlbedoWithOpacity" if selected_diff == "Alpha" else "Albedo",
+            "spec": "Reflectance",
+            "id": "IDMask",
+            "bgs": "BloodGrimeScratchMask",
+            "_mask": "Atlas_Mask"
         }
         
         preset = preset_mapping.get(texture_type, "Default")
@@ -146,24 +168,96 @@ class KCD2DDSPlugin:
     def __init__(self):
         self.export = True
         self.overwrite = True
-        self.version = "0.1.1"
-        self.log = QtWidgets.QTextEdit()
+        self.version = "1.0.1"
         self.window = QtWidgets.QWidget()
-        self.rc_exe_path = get_rc_exe_path()
-        
-        layout = QtWidgets.QVBoxLayout()
+        self.log = QtWidgets.QTextEdit()
         self.log.setReadOnly(True)
-        self.window.setLayout(layout)
-        self.window.setWindowTitle("KCD2 DDS Auto Converter")
+        self.rc_exe_path = get_rc_exe_path()
+
+        # Load settings from INI file
+        self.script_dir = os.path.dirname(os.path.abspath(__file__))
+        self.ini_file_path = os.path.join(self.script_dir, "KCD2-DDS-Exporter-PluginSettings.ini")
+        self.config = configparser.ConfigParser()
+        self.config.read(self.ini_file_path)
         
+        # Get saved dropdown value or default to alpha
+        saved_diff_type = self.config.get("General", "diff_type", fallback="Alpha")
+        
+        # Create main layout
+        main_layout = QtWidgets.QVBoxLayout()
+
+        # Create top section with dropdown and buttons
+        top_layout = QtWidgets.QHBoxLayout()
+        top_layout.setSpacing(2)
+
+        # Create label and dropdown
+        label = QtWidgets.QLabel("Diffuse Type:")
+        label.setSizePolicy(QtWidgets.QSizePolicy.Maximum, QtWidgets.QSizePolicy.Preferred)
+        self.diff_dropdown = QtWidgets.QComboBox()
+        saved_diff_type = self.config.get("General", "diff_type", fallback="Alpha")
+        self.diff_dropdown.setCurrentText(saved_diff_type)  # Set saved value
+        self.diff_dropdown.addItems(['Alpha', 'No Alpha'])
+        self.diff_dropdown.setCurrentText(saved_diff_type)  # Set saved value
+        
+        # Create buttons
+        button_rc = QtWidgets.QPushButton("Choose RC Location")
+        button_clear = QtWidgets.QPushButton("Clear Log")
+        
+        # Add widgets to the top layout
+        top_layout.addWidget(label)
+        top_layout.addWidget(self.diff_dropdown)
+        top_layout.addStretch(1)  # Pushes buttons to the right
+        top_layout.addWidget(button_rc)
+        top_layout.addWidget(button_clear)
+        
+        # Create bottom section for log and version label
+        bottom_layout = QtWidgets.QVBoxLayout()
+        version_label = QtWidgets.QLabel(f"Version: {self.version}")
+        
+        # Add widgets to bottom layout
+        bottom_layout.addWidget(self.log)
+        bottom_layout.addWidget(version_label)
+
+        # Add all layouts to the main layout
+        main_layout.addLayout(top_layout)
+        main_layout.addLayout(bottom_layout)
+
+        self.window.setLayout(main_layout)
+        self.window.setWindowTitle("KCD2 DDS Auto Converter")
+
+        # Connects buttons to click events
+        self.diff_dropdown.currentIndexChanged.connect(self.diff_changed)
+        button_rc.clicked.connect(self.button_rc_clicked)
+        button_clear.clicked.connect(self.button_clear_clicked)
+
+        # Adds Qt as dockable widget to Substance Painter
         substance_painter.ui.add_dock_widget(self.window)
-        self.log.append("RC Path: {}".format(self.rc_exe_path))
+        self.log.append(f"RC Path: {self.rc_exe_path}")
         
         connections = {
             substance_painter.event.ExportTexturesEnded: self.on_export_finished
         }
         for event, callback in connections.items():
             substance_painter.event.DISPATCHER.connect(event, callback)
+
+    def button_rc_clicked(self):
+        self.rc_exe_path = get_rc_exe_path(True)
+        self.log.append("New Resourse Compiler Path: {}".format(self.rc_exe_path))
+
+    def diff_changed(self):
+        selected_diff = self.diff_dropdown.currentText()
+        self.log.append(f"New diff type selected: {selected_diff}")
+        
+        # Save selection to INI file
+        self.config.read(self.ini_file_path)
+        if "General" not in self.config:
+            self.config["General"] = {}
+        self.config["General"]["diff_type"] = selected_diff
+        with open(self.ini_file_path, "w") as configfile:
+            self.config.write(configfile)
+
+    def button_clear_clicked(self):
+        self.log.clear()
     
     def on_export_finished(self, res):
         if self.export:
@@ -177,8 +271,12 @@ class KCD2DDSPlugin:
 KCD2_DDS_PLUGIN = None
 
 def start_plugin():
-    print("KCD2 DDS Exporter Plugin Initialized")
     global KCD2_DDS_PLUGIN
+    if KCD2_DDS_PLUGIN is not None:
+        print("KCD2 DDS Exporter Plugin is already initialized! Skipping re-initialization.")
+        return  # Prevent duplicate initialization
+    
+    print("KCD2 DDS Exporter Plugin Initialized")
     KCD2_DDS_PLUGIN = KCD2DDSPlugin()
 
 def close_plugin():
