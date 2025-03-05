@@ -10,12 +10,14 @@ import importlib.util
 import configparser
 from PySide6 import QtWidgets
 from PySide6.QtCore import Qt
-import substance_painter.ui
-import substance_painter.event
+import substance_painter
 
 def get_substance_painter_python():
     """Finds the correct Substance Painter Python executable."""
-    correct_python = r"C:\\Program Files\\Adobe\\Adobe Substance 3D Painter\\resources\\pythonsdk\\python.exe"
+    substanceexe_path = sys.executable
+    trimmed_path = os.path.dirname(substanceexe_path)
+
+    correct_python = os.path.join(trimmed_path, "resources", "pythonsdk", "python.exe")
     
     if os.path.exists(correct_python):
         print(f"Using Substance Painter Python: {correct_python}")
@@ -147,7 +149,7 @@ def convert_tif_to_dds_with_rc(rc_path, source_tif, output_dds, texture_type):
             "spec": "Reflectance",
             "id": "IDMask",
             "bgs": "BloodGrimeScratchMask",
-            "_mask": "Atlas_Mask"
+            "weapon_mask": "Atlas_Mask"
         }
         
         preset = preset_mapping.get(texture_type, "Default")
