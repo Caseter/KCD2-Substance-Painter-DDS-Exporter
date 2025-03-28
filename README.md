@@ -19,7 +19,7 @@ C:\Users\username\Documents\Adobe\Adobe Substance 3D Painter\python\plugins
 
 (Can also be found using the Python > Plugins Folder button in the top row)
 
-Drag and drop the rc folder into any folder of your choice, just remember where it is.
+Direct the tool to your RC folder (inside the official mod tools Tool>RC by default). Do not use old versions of RC as it will have some issues.
 
 ## Export preset:
 Move the Kingdom Come Deliverance 2 Export.spexp from the optional files to this folder: 
