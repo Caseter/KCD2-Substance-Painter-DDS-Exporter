@@ -70,6 +70,21 @@ ensure_dependency_installed("Pillow")  # Correct capitalization
 import imageio.v3 as iio
 from PIL import Image
 
+def resize_id_texture_if_needed(filepath):
+    """Resize _id.tif textures to 1024x1024 before DDS conversion."""
+    filename = os.path.basename(filepath).lower()
+    if "_id.tif" in filename:
+        try:
+            with Image.open(filepath) as img:
+                if img.size != (1024, 1024):
+                    resized = img.resize((1024, 1024), Image.LANCZOS)
+                    resized.save(filepath)
+                    print(f"Resized ID texture to 1024x1024: {filepath}")
+                else:
+                    print(f"ID texture already 1024x1024: {filepath}")
+        except Exception as e:
+            print(f"Error resizing ID texture: {e}")
+
 def get_rc_exe_path(overwrite=False):
     """Retrieves or sets the path to CryEngine's rc.exe in a settings INI file."""
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -120,7 +135,7 @@ def process_texture_export(rc_path, source_tif):
         return
     
     texture_type = None
-    for key in ["ddna", "diff", "spec", "id", "bgs","mask"]:
+    for key in ["ddna", "diff", "spec", "id", "bgs", "mask"]:
         if key in source_tif:
             texture_type = key
             break
@@ -128,9 +143,11 @@ def process_texture_export(rc_path, source_tif):
     if not texture_type:
         print(f"Warning: Could not determine texture type for {source_tif}. Using default conversion.")
         texture_type = "default"
+
+    # Resize ID maps before export
+    resize_id_texture_if_needed(source_tif)
     
     output_dds = source_tif.replace(".tif", ".dds")
-    
     convert_tif_to_dds_with_rc(rc_path, source_tif, output_dds, texture_type)
 
 def convert_tif_to_dds_with_rc(rc_path, source_tif, output_dds, texture_type):
@@ -151,15 +168,19 @@ def convert_tif_to_dds_with_rc(rc_path, source_tif, output_dds, texture_type):
             "bgs": "BloodGrimeScratchMask",
             "weapon_mask": "Atlas_Mask"
         }
-        
+
         preset = preset_mapping.get(texture_type, "Default")
 
         rc_cmd = [
-            rc_path.replace("\\", "/"),  # Ensure forward slashes
+            rc_path.replace("\\", "/"),
             source_tif.replace("\\", "/"),
             f"-preset={preset}",
             "-o", output_dds
         ]
+
+        # Inject colorspace=linear if IDMask is used
+        if preset == "IDMask":
+            rc_cmd.insert(3, "-colorspace=linear")
 
         subprocess.run(rc_cmd, shell=True, check=True)
         print(f"DDS successfully created with CryEngine RC: {output_dds} using preset: {preset}")
