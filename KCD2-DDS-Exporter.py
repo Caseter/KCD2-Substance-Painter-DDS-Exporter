@@ -178,14 +178,23 @@ def convert_tif_to_dds_with_rc(rc_path, source_tif, output_dds, texture_type):
             "-o", output_dds
         ]
 
-        # Inject colorspace=linear if IDMask is used
         if preset == "IDMask":
             rc_cmd.insert(3, "-colorspace=linear")
 
-        subprocess.run(rc_cmd, shell=True, check=True)
-        print(f"DDS successfully created with CryEngine RC: {output_dds} using preset: {preset}")
-    except subprocess.CalledProcessError as e:
-        print(f"Error converting TIF to DDS using CryEngine RC: {e}")
+        result = subprocess.run(rc_cmd, shell=True, check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+        # Catch error correctly.
+        if os.path.exists(output_dds):
+            print(f"DDS successfully created with CryEngine RC: {output_dds} using preset: {preset}")
+        else:
+            print(f"[Python] Failed to create DDS file for: {source_tif}")
+            print(f"RC return code: {result.returncode}")
+            print(f"STDOUT:\n{result.stdout.decode()}")
+            print(f"STDERR:\n{result.stderr.decode()}")
+
+    except Exception as e:
+        print(f"Unexpected error during conversion: {e}")
+
 
 class KCD2DDSPlugin:
     def __init__(self):
